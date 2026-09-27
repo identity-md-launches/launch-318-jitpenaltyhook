@@ -1,0 +1,26 @@
+{
+  "kind": "univ4_hook",
+  "hook": {
+    "contract": "JITPenaltyHook",
+    "constructorArgs": ["0xE03A1074c86CFeDd5C142C4F04F1a1536e203543"],
+    "permissions": [
+      "afterAddLiquidity",
+      "afterRemoveLiquidity",
+      "afterAddLiquidityReturnDelta",
+      "afterRemoveLiquidityReturnDelta"
+    ]
+  },
+  "token": {
+    "contract": "JITP",
+    "name": "JIT Guard",
+    "symbol": "JITP",
+    "decimals": 18
+  },
+  "pool": {
+    "pairedCurrency": "0x0000000000000000000000000000000000000000",
+    "fee": 3000,
+    "tickSpacing": 60,
+    "initialPrice": "79228162514264337593543950336"
+  },
+  "notes": "Sepolia univ4_hook launch, site label lab-jit-penalty-hook. Solidity 0.8.26, Cancun EVM, optimizer 200 runs, bytecode_hash none; dependencies vendored under lib/.\n\nToken: src/JITP.sol:JITP, OpenZeppelin ERC20 'JIT Guard' (JITP), 18 decimals, no constructor arguments. The constructor mints its entire fixed supply once to msg.sender (the deploying factory); there is no owner, mint, burn entrypoint, pause, tax or upgrade path.\n\nHook: src/JITPenaltyHook.sol:JITPenaltyHook extends v4-periphery BaseHook. Single constructor argument: the Sepolia PoolManager 0xE03A1074c86CFeDd5C142C4F04F1a1536e203543. getHookPermissions returns exactly afterAddLiquidity, afterRemoveLiquidity, afterAddLiquidityReturnDelta and afterRemoveLiquidityReturnDelta; no initialize, swap or donate callbacks and no beforeSwapReturnDelta. Address mask: low 14 bits 0x0503 (1283). No owner, admin, configurable rate, hook fee or upgrade; every callback inherits BaseHook's onlyPoolManager check. State is keyed by PoolId and position key, so any pool may attach it.\n\nBehaviour (reimplementation of OpenZeppelin uniswap-hooks LiquidityPenaltyHook, MIT, credited in docs/ATTRIBUTION.md): WINDOW = 10 blocks. afterAddLiquidity records lastAdded = block.number and withholds fees auto-collected by the add as ERC-6909 claims, returning them as the hook delta. afterRemoveLiquidity (including zero-delta pokes) releases withheld plus fresh fees; if elapsed < 10 the per-currency penalty ceil(total * (10 - elapsed) / 10) is donated to in-range liquidity via poolManager.donate in the same call, otherwise the LP receives all fees. If active liquidity is zero the penalty is waived and paid to the LP (PenaltyWaived) so a removal never reverts because of the hook. Principal is never touched. Events: WindowStarted, FeesWithheld, PenaltyDonated, PenaltyWaived. Views: lastAddedBlock, withheldFees, totalDonated, WINDOW. ABIs: docs/abi/JITPenaltyHook.json and docs/abi/JITP.json.\n\nPool: currency0 native ETH (pairedCurrency zero address), currency1 JITP, static LP fee 3000 (0.30%), tickSpacing 60. initialPrice is sqrtPriceX96 = 2^96 (tick 0, 1:1 in base units), the opening price used by the committed launch rehearsal (test/helpers/HookFixture.sol): the factory seeds one-sided JITP liquidity in a range below this tick, the pool holds no ETH, and the first exact-input buy (zeroForOne, amountSpecified < 0) trades into that range. The approved workflow states no other opening price; the seed range, seed quantity, mined salt and factory address come from the deployment service's reviewed configuration.\n\nThis manifest is a technical description only. Supply, allocations, ownership, contributor lock, chainId, policyVersion, gas ceilings and artifact hashes are not manifest fields; they come from the separately versioned launch policy and the signed release attestation.\n\nKnown limits documented in docs/REVIEW-NOTES.md: sender is the liquidity router, so a shared router (e.g. PoolModifyLiquidityTest) with the same ticks and salt shares one window and withholding; PositionManager with its tokenId salt is recommended. Pokes and partial removals reassess all fees without moving the clock; new salts get independent clocks; the waiver lets a sole active LP exit early with all fees. Swaps are not intercepted and hookData is ignored."
+}
